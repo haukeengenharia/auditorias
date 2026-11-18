@@ -279,7 +279,8 @@ function vItem(it){
     <div class="q"><span class="num">${it.id}</span>${esc(it.t)}</div>
     <div class="notas">${ORDEM.map(k=>`<button class="nb n-${k} ${r.nota===k?'on':''}" data-act="nota" data-id="${it.id}" data-n="${k}">${NOTAS[k].lbl}</button>`).join('')}</div>
     <div class="tools">
-      <label class="tbtn ${fs.length?'has':''}">📷 Fotos${fs.length?` (${fs.length})`:''}<input type="file" accept="image/*" multiple data-act="foto" data-id="${it.id}" ${ro()?'disabled':''}></label>
+      <label class="tbtn ${fs.length?'has':''}">📷 Câmera${fs.length?` (${fs.length})`:''}<input type="file" accept="image/*" capture="environment" data-act="foto" data-id="${it.id}" ${ro()?'disabled':''}></label>
+      <label class="tbtn">🖼 Galeria<input type="file" accept="image/*" multiple data-act="foto" data-id="${it.id}" ${ro()?'disabled':''}></label>
       <button class="tbtn ${r.obs?'has':''}" data-act="obs" data-id="${it.id}">✎ Observação</button>
     </div>
     ${showObs?`<textarea class="obs" data-act="obstxt" data-id="${it.id}" placeholder="Descreva a constatação…" ${ro()?'readonly':''}>${esc(r.obs||'')}</textarea>`:''}

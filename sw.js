@@ -1,6 +1,6 @@
 /* Service worker: guarda o app no celular para abrir sem internet.
    Ao publicar uma nova versão, aumente o número em VERSAO para os celulares atualizarem. */
-const VERSAO = 'auditorias-v3';
+const VERSAO = 'auditorias-v4';
 const ARQUIVOS = [
   './', './index.html', './app.js', './modelo.js', './config.js',
   './manifest.webmanifest', './vendor/jspdf.umd.min.js',
