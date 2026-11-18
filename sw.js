@@ -1,6 +1,6 @@
 /* Service worker: guarda o app no celular para abrir sem internet.
    Ao publicar uma nova versão, aumente o número em VERSAO para os celulares atualizarem. */
-const VERSAO = 'auditorias-v4';
+const VERSAO = 'auditorias-v5';
 const ARQUIVOS = [
   './', './index.html', './app.js', './modelo.js', './config.js',
   './manifest.webmanifest', './vendor/jspdf.umd.min.js',
@@ -8,7 +8,7 @@ const ARQUIVOS = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSAO).then(c => c.addAll(ARQUIVOS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSAO).then(c => c.addAll(ARQUIVOS.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -26,7 +26,7 @@ self.addEventListener('fetch', e => {
   // a versão nova aparece na próxima vez que o app for aberto.
   e.respondWith(
     caches.match(e.request, { ignoreSearch: true }).then(cached => {
-      const rede = fetch(e.request).then(r => {
+      const rede = fetch(e.request, { cache: 'no-cache' }).then(r => {
         if (r.ok) { const cp = r.clone(); caches.open(VERSAO).then(c => c.put(e.request, cp)); }
         return r;
       }).catch(() => cached || caches.match('./index.html'));

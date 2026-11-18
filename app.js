@@ -1,5 +1,6 @@
 /* Auditorias Hauke — app (PWA). Depende de: modelo.js (MODELO), config.js (HAUKE_CONFIG), vendor/jspdf. */
 'use strict';
+const APP_VERSAO='v5'; // mantenha igual ao número do VERSAO no sw.js
 
 const NOTAS = {
  A:{p:20, lbl:'A',   txt:'Concluiu totalmente',                pts:'20 pontos'},
@@ -98,6 +99,7 @@ const DB = (()=>{
 })();
 
 /* ================= ESTADO ================= */
+let atualizarPendente=false;
 let A=null, passo=0, fotos=new Map(), lista=[], obsAberta=new Set();
 
 /* ================= CÁLCULO ================= */
@@ -132,6 +134,7 @@ function marcarSalvo(){ const el=document.getElementById('saved'); if(el) el.tex
 
 /* ================= HOME ================= */
 async function irHome(){
+  if(atualizarPendente){ location.reload(); return; }
   A=null; fotos=new Map(); obsAberta.clear();
   lista=(await DB.all('auditorias')).sort((a,b)=>b.atualizada-a.atualizada);
   renderHome(); window.scrollTo(0,0);
@@ -472,7 +475,7 @@ function menuAud(id){
   modalAcoes(nome,'',acoes);
 }
 function menuApp(){
-  modalAcoes('Auditorias Hauke','',[
+  modalAcoes('Auditorias Hauke','Versão do app: '+APP_VERSAO,[
     {label:'Sincronizar agora',fn:()=>sincronizar(true)},
     {label:'Sair (esquecer a senha neste aparelho)',fn:()=>confirmar('Sair?','A senha será pedida de novo na próxima abertura. Auditorias deste aparelho não são apagadas.','Sair',()=>sair())}
   ]);
@@ -707,7 +710,12 @@ async function instalarApp(){
 
 /* ================= INÍCIO ================= */
 (async()=>{
-  if('serviceWorker' in navigator && location.protocol==='https:'){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+  if('serviceWorker' in navigator && location.protocol==='https:'){
+    const tinhaSW=!!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
+    // Versão nova instalada: recarrega na hora se estiver na tela inicial; senão, na próxima volta ao início.
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(!tinhaSW) return; if(!A) location.reload(); else atualizarPendente=true; });
+  }
   if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});
   await DB.open();
   window.addEventListener('online',()=>sincronizar());
