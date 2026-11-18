@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Configurar – Auditorias Hauke</title>
+<style>
+body{margin:0;background:#f3f5f8;font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1b2430}
+.w{max-width:640px;margin:0 auto;padding:20px}
+h1{color:#0d2f5e;font-size:22px}
+.card{background:#fff;border:1px solid #dfe4ea;border-radius:14px;padding:16px;margin-bottom:14px}
+label{display:block;font-weight:600;font-size:13px;margin:10px 0 5px}
+input,textarea{width:100%;box-sizing:border-box;border:1px solid #dfe4ea;border-radius:10px;padding:11px;font:inherit}
+textarea{font-family:ui-monospace,Menlo,monospace;font-size:12px;min-height:170px}
+button{border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:700;background:#1d5fae;color:#fff;cursor:pointer;margin-top:12px}
+button.g{background:#fff;color:#1b2430;border:1px solid #dfe4ea}
+.msg{margin-top:10px;font-size:14px}
+.ok{color:#1f9d55}.err{color:#e4572e}
+small{color:#6b7685}
+</style>
+</head>
+<body><div class="w">
+<h1>Configurar envio para o Drive</h1>
+<p><small>Tudo é feito neste navegador; nada é enviado para lugar nenhum. O resultado é o conteúdo do arquivo <b>config.js</b>.</small></p>
+<div class="card">
+  <label>Endereço do App da Web do Apps Script (termina em /exec)</label>
+  <input id="url" placeholder="https://script.google.com/macros/s/.../exec">
+  <label>Senha de acesso (a mesma gravada no Apps Script)</label>
+  <input id="s1" type="password" autocomplete="new-password">
+  <label>Repita a senha</label>
+  <input id="s2" type="password" autocomplete="new-password">
+  <button id="testar" class="g">Testar conexão</button>
+  <button id="gerar">Gerar config.js</button>
+  <div id="msg" class="msg"></div>
+</div>
+<div class="card" id="saida" hidden>
+  <label>Substitua todo o conteúdo do arquivo config.js no GitHub por:</label>
+  <textarea id="out" readonly></textarea>
+  <button id="copiar">Copiar</button>
+</div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const b64=u=>btoa(String.fromCharCode(...new Uint8Array(u)));
+function msg(t,c){$('msg').className='msg '+(c||'');$('msg').textContent=t;}
+function validar(){
+  const url=$('url').value.trim(), s=$('s1').value;
+  if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){msg('Endereço inválido: precisa começar com https://script.google.com/ e terminar em /exec.','err');return null;}
+  if(s.length<10){msg('Use uma senha com pelo menos 10 caracteres (ideal: uma frase).','err');return null;}
+  if(s!==$('s2').value){msg('As senhas não conferem.','err');return null;}
+  return {url,s};
+}
+$('testar').onclick=async()=>{
+  const v=validar(); if(!v) return; msg('Testando…');
+  try{
+    const r=await fetch(v.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({acao:'ping',senha:v.s})});
+    const j=await r.json();
+    if(j.ok) msg('Conexão OK e senha aceita pelo Apps Script.','ok');
+    else msg(j.erro==='senha'?'O Apps Script recusou a senha. Confira a senha gravada em configurarSenha().':'Erro: '+j.erro,'err');
+  }catch(e){ msg('Não consegui falar com o Apps Script. Confira o endereço e se a implantação está como "Qualquer pessoa".','err'); }
+};
+$('gerar').onclick=async()=>{
+  const v=validar(); if(!v) return;
+  const iter=310000, salt=crypto.getRandomValues(new Uint8Array(16)), iv=crypto.getRandomValues(new Uint8Array(12));
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(v.s),'PBKDF2',false,['deriveKey']);
+  const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:iter,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt']);
+  const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify({url:v.url})));
+  $('out').value=`/* Gerado em configurar.html em ${new Date().toLocaleString('pt-BR')}. Não edite à mão. */
+window.HAUKE_CONFIG = {
+  enc: "${b64(enc)}",
+  iv: "${b64(iv)}",
+  salt: "${b64(salt)}",
+  iter: ${iter}
+};
+`;
+  $('saida').hidden=false; msg('Pronto. Copie o conteúdo abaixo para o config.js.','ok');
+};
+$('copiar').onclick=async()=>{ try{ await navigator.clipboard.writeText($('out').value); $('copiar').textContent='Copiado ✓'; }catch(e){ $('out').select(); } };
+</script>
+</body>
+</html>
