@@ -176,6 +176,7 @@ function renderHome(){
     ${SESSAO?'<button class="iconbtn" data-act="menuApp" aria-label="Menu">⋯</button>':'<span class="brand">HAUKE ENGENHARIA</span>'}</div></div>
   ${DB.ok?'':'<div class="banner">Armazenamento local indisponível neste navegador — os dados ficam só enquanto a página estiver aberta.</div>'}
   ${configurado()?'':'<div class="banner">Envio para o Drive não configurado — auditorias ficam só neste aparelho.</div>'}
+  ${senhaRecusada?'<div class="banner" style="background:#fde8e1;color:#8a2c12">O Apps Script recusou a senha: a senha gravada nele (configurarSenha) é diferente da usada no config.js. As auditorias continuam salvas no aparelho.</div>':''}
   <div class="wrap">
     <div class="hero">
       <h1>Auditoria de Instalações – Qualidade</h1>
@@ -646,7 +647,7 @@ async function atualizarRemotas(){
   const res=await api('listar',{});
   LS.set('hauke_remotas',JSON.stringify(res.auditorias||[]));
 }
-let sincronizando=false;
+let sincronizando=false, senhaRecusada=false;
 async function sincronizar(manual){
   if(!SESSAO){ if(manual) toast('Envio para o Drive não configurado'); return; }
   if(!navigator.onLine){ if(manual) toast('Sem internet — o envio fica na fila'); return; }
@@ -658,10 +659,10 @@ async function sincronizar(manual){
       try{ await enviarAuditoria(a.id); enviadas++; }
       catch(e){ if(e.code==='senha') throw e; falhas++; }
     }
-    await atualizarRemotas();
+    await atualizarRemotas(); senhaRecusada=false;
     if(manual||enviadas) toast(falhas?`${falhas} envio(s) falharam; nova tentativa depois`: enviadas?`${enviadas} auditoria(s) enviada(s) para o Drive`:'Tudo sincronizado');
   }catch(e){
-    if(e.code==='senha'){ sincronizando=false; return sair('A senha de acesso mudou. Digite a nova senha.'); }
+    if(e.code==='senha'){ senhaRecusada=true; if(manual) toast('O Apps Script recusou a senha.'); }
     if(manual) toast('Falha na conexão com o Drive: '+e.message);
   }finally{
     sincronizando=false;
