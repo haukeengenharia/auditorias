@@ -178,6 +178,7 @@ function renderHome(){
   ${configurado()?'':'<div class="banner">Envio para o Drive não configurado — auditorias ficam só neste aparelho.</div>'}
   ${senhaRecusada?'<div class="banner" style="background:#fde8e1;color:#8a2c12">O Apps Script recusou a senha: a senha gravada nele (configurarSenha) é diferente da usada no config.js. As auditorias continuam salvas no aparelho.</div>':''}
   <div class="wrap">
+    <div id="instBox">${htmlInstalar()}</div>
     <div class="hero">
       <h1>Auditoria de Instalações – Qualidade</h1>
       <p>Checklist por setores com notas A–D, K.O e N/A, fotos e relatório em PDF. Funciona sem internet.</p>
@@ -332,6 +333,8 @@ document.addEventListener('click',async e=>{
     case 'abrir': return abrirAuditoria(el.dataset.id);
     case 'home': await salvar(true); return irHome();
     case 'menuApp': return menuApp();
+    case 'instalar': return instalarApp();
+    case 'instDepois': LS.set('hauke_inst_ate',String(Date.now()+3*864e5)); return atualizarInstalar();
     case 'ir': if(passo===0 && !validarDados()) return; return ir(+el.dataset.p);
     case 'ant': return ir(passo-1);
     case 'prox': if(passo===0 && !validarDados()) return; return ir(passo+1);
@@ -668,6 +671,37 @@ async function sincronizar(manual){
     sincronizando=false;
     if(!A&&SESSAO) irHome(); else if(A&&passo===totalPassos()-1) renderAudit();
   }
+}
+
+
+/* ================= AVISO DE INSTALAÇÃO ================= */
+let promptInstalar=null;
+const ua=navigator.userAgent;
+const ehIOS=/iPhone|iPad|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const ehAndroid=/Android/i.test(ua);
+const instalado=()=>window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+function htmlInstalar(){
+  if(instalado()) return '';
+  if(Number(LS.get('hauke_inst_ate')||0)>Date.now()) return '';
+  const depois='<button class="btn btn-g" data-act="instDepois">Agora não</button>';
+  const caixa=(t,corpo,acts)=>`<div class="inst"><img src="icons/icon-192.png" alt=""><div style="flex:1"><h4>${t}</h4>${corpo}<div class="inst-acts">${acts}</div></div></div>`;
+  const appInterno=/FBAN|FBAV|FB_IAB|Instagram|Line\//.test(ua);
+  const iosOutro=ehIOS&&/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+  if(promptInstalar) return caixa('Instale o app Auditorias','<p>Abre pelo ícone na tela inicial e funciona sem internet.</p>','<button class="btn btn-p" data-act="instalar">Instalar app</button>'+depois);
+  if(appInterno) return caixa('Abra no navegador para instalar',`<p>Por dentro deste app não dá para instalar. Toque nos três pontinhos e escolha <b>Abrir no ${ehIOS?'Safari':'Chrome'}</b>.</p>`,depois);
+  if(ehIOS&&iosOutro) return caixa('Abra no Safari para instalar','<p>No iPhone, a instalação é feita pelo <b>Safari</b>. Copie o link e abra nele.</p>',depois);
+  if(ehIOS) return caixa('Instale o app Auditorias','<ol><li>Toque em <b>Compartilhar</b> (quadrado com seta, na barra do Safari)</li><li>Escolha <b>Adicionar à Tela de Início</b></li><li>Toque em <b>Adicionar</b></li></ol>',depois);
+  if(ehAndroid) return caixa('Instale o app Auditorias','<p>No Chrome, toque em <b>⋮</b> (canto superior direito) e escolha <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.</p>',depois);
+  return '';
+}
+function atualizarInstalar(){ const el=document.getElementById('instBox'); if(el) el.innerHTML=htmlInstalar(); }
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); promptInstalar=e; atualizarInstalar(); });
+window.addEventListener('appinstalled',()=>{ promptInstalar=null; atualizarInstalar(); toast('App instalado. Abra pelo ícone na tela inicial.'); });
+async function instalarApp(){
+  if(!promptInstalar) return;
+  promptInstalar.prompt();
+  try{ await promptInstalar.userChoice; }catch(e){}
+  promptInstalar=null; atualizarInstalar();
 }
 
 /* ================= INÍCIO ================= */
